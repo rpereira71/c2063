@@ -1,35 +1,47 @@
-
 <!DOCTYPE html>
 <html lang="pt">
 <head>
 <meta charset="UTF-8">
 <title>Meetings 2025/29</title>
 <style>
-body {
-  font-family: sans-serif;
-  text-align: center;
-  padding: 30px;
-  margin: 0;
-}
-#countdown-area {
-  display: none;
-}
-.timer {
-  font-size: 12vw;
-  margin-bottom: 10px;
-  width: 100%;
-}
-.frase {
-  font-size: 2vw;
-  margin-bottom: 15px;
-}
-button {
-  font-size: 1.2vw;
-  margin: 5px;
-  padding: 10px 20px;
-  cursor: pointer;
-}
+body { font-family: sans-serif; text-align: center; padding: 30px; }
+.timer { font-size: 12vw; margin-bottom: 10px; }
+.frase { font-size: 2vw; margin-bottom: 15px; }
+button { font-size: 1.2vw; margin: 5px; padding: 10px 20px; cursor: pointer; }
+#countdown-area { display: none; }
 </style>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
+  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBj9bBZHrvGwUtepL2N7Io-cuvV-uP6oUo",
+    authDomain: "reunioes-timer.firebaseapp.com",
+    databaseURL: "https://reunioes-timer-default-rtdb.firebaseio.com",
+    projectId: "reunioes-timer",
+    storageBucket: "reunioes-timer.firebasestorage.app",
+    messagingSenderId: "492226419363",
+    appId: "1:492226419363:web:2fdc199ac7b2d583937d16",
+    measurementId: "G-H0N8TQC3PZ"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  window.salvarCronometro = (segundos, frase) => {
+    set(ref(db, "cronometro"), {
+      segundos: segundos,
+      frase: frase,
+      timestamp: Date.now()
+    });
+  };
+
+  window.atualizarSegundos = (segundos) => {
+    set(ref(db, "cronometro/segundos"), segundos);
+  };
+</script>
+
 </head>
 <body>
 <div id="lista-frases">
@@ -98,61 +110,33 @@ button {
 </div>
 <div id="countdown-area">
   <div id="timer" class="timer">00:00</div>
-  <div id="frase" class="frase"></div>
+  <div id="frase" class="frase">A aguardar...</div>
   <button onclick="adjustTimer(60)">➕ +1 min</button>
   <button onclick="adjustTimer(-60)">➖ -1 min</button>
   <button id="pause-btn" onclick="pauseTimer()">⏸ Pause</button>
   <button onclick="stopTimer()">⏹ Stop</button>
 </div>
-
-<script type="module">
-// ✅ Firebase SDK
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
-import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyBj9bBZHrvGwUtepL2N7Io-cuvV-uP6oUo",
-  authDomain: "reunioes-timer.firebaseapp.com",
-  databaseURL: "https://reunioes-timer-default-rtdb.firebaseio.com",
-  projectId: "reunioes-timer",
-  storageBucket: "reunioes-timer.firebasestorage.app",
-  messagingSenderId: "492226419363",
-  appId: "1:492226419363:web:2fdc199ac7b2d583937d16"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-
-// 🕰️ Cronómetro local + sincronização
+<script>
 let timerInterval;
 let currentTime;
 let isPaused = false;
-
-function syncToFirebase() {
-  const frase = document.getElementById("frase").textContent;
-  set(ref(db, "cronometro"), {
-    tempo: currentTime,
-    frase: frase,
-    pausado: isPaused
-  });
-}
 
 function startTimer(seconds, frase) {
   clearInterval(timerInterval);
   currentTime = seconds;
   isPaused = false;
+  window.salvarCronometro(currentTime, frase);
   document.getElementById("lista-frases").style.display = "none";
   document.getElementById("countdown-area").style.display = "block";
   document.getElementById("frase").textContent = frase;
   document.getElementById("pause-btn").textContent = "⏸ Pause";
   updateTimerDisplay();
-  syncToFirebase();
 
   timerInterval = setInterval(() => {
     if (!isPaused) {
       currentTime--;
       updateTimerDisplay();
-      syncToFirebase();
+      window.atualizarSegundos(currentTime);
     }
   }, 1000);
 }
@@ -160,32 +144,32 @@ function startTimer(seconds, frase) {
 function pauseTimer() {
   isPaused = !isPaused;
   document.getElementById("pause-btn").textContent = isPaused ? "▶ Play" : "⏸ Pause";
-  syncToFirebase();
 }
 
 function stopTimer() {
   clearInterval(timerInterval);
   currentTime = 0;
-  isPaused = false;
   updateTimerDisplay();
+  isPaused = false;
   document.getElementById("countdown-area").style.display = "none";
   document.getElementById("lista-frases").style.display = "block";
-  syncToFirebase();
 }
 
 function adjustTimer(seconds) {
   currentTime += seconds;
   updateTimerDisplay();
-  syncToFirebase();
+  window.atualizarSegundos(currentTime);
 }
 
 function updateTimerDisplay() {
   let mins = Math.floor(Math.abs(currentTime) / 60);
   let secs = Math.abs(currentTime) % 60;
   let timer = document.getElementById("timer");
-  timer.textContent = (currentTime < 0 ? "-" : "") +
+  timer.textContent = (currentTime < 0 ? "-" : "") + 
     `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-  timer.style.color = currentTime < 0 ? "red" : (currentTime <= 30 ? "orange" : "black");
+  if (currentTime <= -1) timer.style.color = "red";
+  else if (currentTime <= 30) timer.style.color = "orange";
+  else timer.style.color = "black";
 }
 </script>
 </body>

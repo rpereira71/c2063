@@ -2,72 +2,67 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8">
-  <title>Cronómetro Ao Vivo</title>
+  <title>Cronómetro ao Vivo</title>
   <style>
-    body {
-      font-family: sans-serif;
-      text-align: center;
-      padding: 30px;
-      margin: 0;
-    }
-    .timer {
-      font-size: 12vw;
-      width: 100%;
-      margin-bottom: 10px;
-    }
-    .frase {
-      font-size: 2vw;
-      margin-bottom: 15px;
-    }
+    body { text-align: center; font-family: sans-serif; padding: 30px; }
+    .timer { font-size: 12vw; color: black; }
+    .frase { font-size: 2vw; margin-top: 20px; }
   </style>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
+  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBj9bBZHrvGwUtepL2N7Io-cuvV-uP6oUo",
+    authDomain: "reunioes-timer.firebaseapp.com",
+    databaseURL: "https://reunioes-timer-default-rtdb.firebaseio.com",
+    projectId: "reunioes-timer",
+    storageBucket: "reunioes-timer.firebasestorage.app",
+    messagingSenderId: "492226419363",
+    appId: "1:492226419363:web:2fdc199ac7b2d583937d16",
+    measurementId: "G-H0N8TQC3PZ"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  window.salvarCronometro = (segundos, frase) => {
+    set(ref(db, "cronometro"), {
+      segundos: segundos,
+      frase: frase,
+      timestamp: Date.now()
+    });
+  };
+
+  window.atualizarSegundos = (segundos) => {
+    set(ref(db, "cronometro/segundos"), segundos);
+  };
+</script>
+
 </head>
 <body>
-  <h2 id="frase">A aguardar cronómetro...</h2>
-  <div id="timer" class="timer">00:00</div>
+  <div class="timer" id="timer">00:00</div>
+  <div class="frase" id="frase">A aguardar...</div>
+<script type="module">
+  import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
+  const db = getDatabase();
+  const cronometroRef = ref(db, "cronometro");
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
-    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyBj9bBZHrvGwUtepL2N7Io-cuvV-uP6oUo",
-      authDomain: "reunioes-timer.firebaseapp.com",
-      databaseURL: "https://reunioes-timer-default-rtdb.firebaseio.com",
-      projectId: "reunioes-timer",
-      storageBucket: "reunioes-timer.firebasestorage.app",
-      messagingSenderId: "492226419363",
-      appId: "1:492226419363:web:2fdc199ac7b2d583937d16"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-
-    let tempo = 0;
-    let pausado = false;
-
-    onValue(ref(db, "cronometro"), (snapshot) => {
-      const dados = snapshot.val();
-      if (!dados) return;
-      tempo = dados.tempo;
-      pausado = dados.pausado;
-      document.getElementById("frase").textContent = dados.frase || "—";
-      updateTimerDisplay();
-    });
-
-    setInterval(() => {
-      if (!pausado) tempo--;
-      updateTimerDisplay();
-    }, 1000);
-
-    function updateTimerDisplay() {
-      const mins = Math.floor(Math.abs(tempo) / 60);
-      const secs = Math.abs(tempo) % 60;
+  onValue(cronometroRef, snapshot => {
+    const data = snapshot.val();
+    if (data) {
+      const mins = Math.floor(Math.abs(data.segundos) / 60);
+      const secs = Math.abs(data.segundos) % 60;
       document.getElementById("timer").textContent =
-        (tempo < 0 ? "-" : "") +
-        `${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
-      document.getElementById("timer").style.color =
-        tempo < 0 ? "red" : (tempo <= 30 ? "orange" : "black");
+        (data.segundos < 0 ? "-" : "") +
+        `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+      document.getElementById("frase").textContent = data.frase;
+      const timerEl = document.getElementById("timer");
+      timerEl.style.color = data.segundos <= -1 ? "red" :
+                            data.segundos <= 30 ? "orange" : "black";
     }
-  </script>
+  });
+</script>
 </body>
 </html>
