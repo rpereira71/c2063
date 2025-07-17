@@ -18,7 +18,6 @@ body {
   font-size: 12vw;
   margin-bottom: 10px;
   width: 100%;
-  text-align: center;
 }
 .frase {
   font-size: 2vw;
@@ -106,10 +105,37 @@ button {
   <button onclick="stopTimer()">⏹ Stop</button>
 </div>
 
-<script>
+<script type="module">
+// ✅ Firebase SDK
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
+import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBj9bBZHrvGwUtepL2N7Io-cuvV-uP6oUo",
+  authDomain: "reunioes-timer.firebaseapp.com",
+  databaseURL: "https://reunioes-timer-default-rtdb.firebaseio.com",
+  projectId: "reunioes-timer",
+  storageBucket: "reunioes-timer.firebasestorage.app",
+  messagingSenderId: "492226419363",
+  appId: "1:492226419363:web:2fdc199ac7b2d583937d16"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+// 🕰️ Cronómetro local + sincronização
 let timerInterval;
 let currentTime;
 let isPaused = false;
+
+function syncToFirebase() {
+  const frase = document.getElementById("frase").textContent;
+  set(ref(db, "cronometro"), {
+    tempo: currentTime,
+    frase: frase,
+    pausado: isPaused
+  });
+}
 
 function startTimer(seconds, frase) {
   clearInterval(timerInterval);
@@ -120,10 +146,13 @@ function startTimer(seconds, frase) {
   document.getElementById("frase").textContent = frase;
   document.getElementById("pause-btn").textContent = "⏸ Pause";
   updateTimerDisplay();
+  syncToFirebase();
+
   timerInterval = setInterval(() => {
     if (!isPaused) {
       currentTime--;
       updateTimerDisplay();
+      syncToFirebase();
     }
   }, 1000);
 }
@@ -131,6 +160,7 @@ function startTimer(seconds, frase) {
 function pauseTimer() {
   isPaused = !isPaused;
   document.getElementById("pause-btn").textContent = isPaused ? "▶ Play" : "⏸ Pause";
+  syncToFirebase();
 }
 
 function stopTimer() {
@@ -140,11 +170,13 @@ function stopTimer() {
   updateTimerDisplay();
   document.getElementById("countdown-area").style.display = "none";
   document.getElementById("lista-frases").style.display = "block";
+  syncToFirebase();
 }
 
 function adjustTimer(seconds) {
   currentTime += seconds;
   updateTimerDisplay();
+  syncToFirebase();
 }
 
 function updateTimerDisplay() {
@@ -153,13 +185,7 @@ function updateTimerDisplay() {
   let timer = document.getElementById("timer");
   timer.textContent = (currentTime < 0 ? "-" : "") +
     `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-  if (currentTime <= -1) {
-    timer.style.color = "red";
-  } else if (currentTime <= 30) {
-    timer.style.color = "orange";
-  } else {
-    timer.style.color = "black";
-  }
+  timer.style.color = currentTime < 0 ? "red" : (currentTime <= 30 ? "orange" : "black");
 }
 </script>
 </body>
